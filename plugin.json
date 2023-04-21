@@ -1,10 +1,10 @@
 {
-    "id": "com.mattermost.plugin-starter-template",
-    "name": "Plugin Starter Template",
-    "description": "This plugin serves as a starting point for writing a Mattermost plugin.",
-    "homepage_url": "https://github.com/mattermost/mattermost-plugin-starter-template",
-    "support_url": "https://github.com/mattermost/mattermost-plugin-starter-template/issues",
-    "release_notes_url": "https://github.com/mattermost/mattermost-plugin-starter-template/releases/tag/v0.1.0",
+    "id": "org.polycancer.mattermost-partyparrots-sync",
+    "name": "Party Parrots Sync Plugin",
+    "description": "This plugin allows syncing party parrot emojis into your Mattermost server.",
+    "homepage_url": "https://github.com/opendwellers/mattermost-partyparrots-sync",
+    "support_url": "https://github.com/opendwellers/mattermost-partyparrots-sync/issues",
+    "release_notes_url": "https://github.com/opendwellers/mattermost-partyparrots-sync/releases/tag/v0.1.0",
     "icon_path": "assets/starter-template-icon.svg",
     "version": "0.1.0",
     "min_server_version": "6.2.1",
@@ -17,12 +17,18 @@
             "windows-amd64": "server/dist/plugin-windows-amd64.exe"
         }
     },
-    "webapp": {
-        "bundle_path": "webapp/dist/main.js"
-    },
     "settings_schema": {
         "header": "",
         "footer": "",
-        "settings": []
+        "settings": [
+            {
+                "key": "AccessToken",
+                "display_name": "Mattermost Access Token",
+                "type": "text",
+                "help_text": "Mattermost Personal Access Token for executing CreateEmoji API",
+                "placeholder": "",
+                "default": null
+            }
+        ]
     }
 }
