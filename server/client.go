@@ -5,10 +5,12 @@ import (
 	"net/http"
 
 	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/pkg/errors"
 )
 
 type MattermostClient struct {
 	client *model.Client4
+	token  *model.UserAccessToken
 }
 
 func Login(url, token string) (*MattermostClient, error) {
@@ -28,17 +30,31 @@ func (p *Plugin) ensureConnected() error {
 }
 
 func (p *Plugin) initializeMattermostClient() error {
-	p.API.LogDebug("Initializing client")
+	p.pluginClient.Log.Debug("Initializing client")
 	configuration := p.getConfiguration()
 	if configuration == nil || configuration.AccessToken == "" {
-		p.API.LogInfo("Not configured yet, skipping login.")
+		p.pluginClient.Log.Info("Not configured yet, skipping login.")
 		return nil
 	}
-	config := p.API.GetConfig()
+	config := p.pluginClient.Configuration.GetConfig()
 	p.siteURL = *config.ServiceSettings.SiteURL
-
-	p.API.LogDebug(fmt.Sprintf("Login to %s using token %s", p.siteURL, configuration.AccessToken))
-	c, err := Login(p.siteURL, configuration.AccessToken)
+	bot := &model.Bot{
+		Username:    "partyparrotssync",
+		DisplayName: "Party Parrots Bot",
+		Description: "Created by the Party Parrots Sync plugin.",
+	}
+	userID, err := p.pluginClient.Bot.EnsureBot(bot)
+	if err != nil {
+		return errors.Wrap(err, "Failed to ensure bot")
+	}
+	p.UserID = userID
+	p.pluginClient.Log.Debug(fmt.Sprintf("Created bot with id %s", p.UserID))
+	p.client.token, err = p.pluginClient.User.CreateAccessToken(p.UserID, "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to create bot access token")
+	}
+	p.pluginClient.Log.Debug(fmt.Sprintf("Login to %s", p.siteURL))
+	c, err := Login(p.siteURL, p.client.token.Token)
 	if err != nil {
 		return nil
 	}
@@ -46,7 +62,7 @@ func (p *Plugin) initializeMattermostClient() error {
 	if err != nil {
 		return err
 	}
-	p.API.LogDebug(fmt.Sprintf("Got user id %s", id))
+	p.pluginClient.Log.Debug(fmt.Sprintf("Got user id %s", id))
 
 	p.client = c
 	p.UserID = id

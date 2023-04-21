@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 )
@@ -14,6 +15,7 @@ import (
 type Plugin struct {
 	plugin.MattermostPlugin
 	client        *MattermostClient
+	pluginClient  *pluginapi.Client
 	siteURL       string
 	UserID        string
 	command       model.Command
@@ -28,50 +30,57 @@ type Plugin struct {
 }
 
 func (p *Plugin) OnActivate() error {
-	p.API.LogInfo("Activating...")
+	p.API.LogInfo("Before New Client")
+	if p.pluginClient == nil {
+		p.pluginClient = pluginapi.NewClient(p.API, p.Driver)
+	}
+	p.API.LogInfo("After New Client")
+	p.pluginClient.Log.Info("Activating...")
 
-	p.API.LogInfo("Registering slash command...")
+	p.pluginClient.Log.Info("Registering slash command...")
 	p.command = model.Command{
 		Trigger:          "partyparrotssync",
 		AutoComplete:     true,
 		AutoCompleteDesc: `Sync Party Parrots emojis`,
 	}
-	if err := p.API.RegisterCommand(&p.command); err != nil {
-		p.API.LogError(err.Error())
+
+	if err := p.pluginClient.SlashCommand.Register(&p.command); err != nil {
+		p.pluginClient.Log.Error(err.Error())
 		return err
 	}
+
 	if err := p.ensureConnected(); err != nil {
-		p.API.LogError(err.Error())
+		p.pluginClient.Log.Error(err.Error())
 	}
-	p.API.LogInfo("Done.")
+	p.pluginClient.Log.Info("Done.")
 	return nil
 }
 
 func (p *Plugin) OnDeactivate() error {
-	p.API.LogInfo("Deactivating...")
+	p.pluginClient.Log.Info("Deactivating...")
 
-	p.API.LogInfo("Unregistering slash command...")
-	if err := p.API.UnregisterCommand("", p.command.Trigger); err != nil {
-		p.API.LogError(err.Error())
+	p.pluginClient.Log.Info("Unregistering slash command...")
+	if err := p.pluginClient.SlashCommand.Unregister("", p.command.Trigger); err != nil {
+		p.pluginClient.Log.Error(err.Error())
 		return err
 	}
-	p.API.LogInfo("Done.")
+	p.pluginClient.Log.Info("Done.")
 	return nil
 }
 
 // ExecuteCommand handle commands that are created by this plugin
 func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	p.API.LogInfo("Slash command received.")
+	p.pluginClient.Log.Info("Slash command received.")
 	p.SendEphemeralPost(args.ChannelId, args.UserId, args.RootId, "Starting Party Parrots sync...")
 	if err := p.ensureConnected(); err != nil {
-		p.API.LogError(err.Error())
+		p.pluginClient.Log.Error(err.Error())
 	}
 	for _, parrotType := range parrotTypes {
-		p.API.LogInfo(fmt.Sprintf("Fetching gif list for %s.", parrotType))
+		p.pluginClient.Log.Info(fmt.Sprintf("Fetching gif list for %s.", parrotType))
 		list, err := fetchParrotList(parrotType)
 		if err != nil {
 			// Try the next parrot type
-			p.API.LogError(fmt.Sprintf("Could not fetch gif list for type %s", parrotType))
+			p.pluginClient.Log.Error(fmt.Sprintf("Could not fetch gif list for type %s", parrotType))
 			continue
 		}
 
@@ -89,48 +98,48 @@ func (p *Plugin) CreateEmoji(parrot Parrot, parrotType string) {
 	// Validate if we already have an emoji matching this gif
 	if p.EmojiExists(parrot.name) {
 		// We already have it, skip
-		p.API.LogInfo(fmt.Sprintf("Emoji :%s: already exists. Skipping.", parrot.name))
+		p.pluginClient.Log.Info(fmt.Sprintf("Emoji :%s: already exists. Skipping.", parrot.name))
 		return
 	}
 	// Fetch the gif data from GitHub
-	p.API.LogInfo(fmt.Sprintf("Fetching gif for %s.", parrot.name))
+	p.pluginClient.Log.Info(fmt.Sprintf("Fetching gif for %s.", parrot.name))
 	if fetchParrotGif(&parrot, parrotType) != nil {
-		p.API.LogError(fmt.Sprintf("Failed to fetch %s", parrot.name))
+		p.pluginClient.Log.Error(fmt.Sprintf("Failed to fetch %s", parrot.name))
 		return
 	}
 	appErr := p.client.RegisterNewEmoji(parrot.gif, parrot.name, p.UserID)
 	if appErr != nil && strings.Contains(appErr.Error(), "Name conflicts with existing system emoji name") {
 		parrot.name += "2"
 		if !p.EmojiExists(parrot.name) {
-			p.API.LogInfo(fmt.Sprintf("Emoji :%s: already exists. Skipping.", parrot.name))
+			p.pluginClient.Log.Info(fmt.Sprintf("Emoji :%s: already exists. Skipping.", parrot.name))
 			return
 		}
 		appErr := p.client.RegisterNewEmoji(parrot.gif, parrot.name, p.UserID)
 		if appErr != nil {
-			p.API.LogError(fmt.Sprintf("Could not create emoji %s: %s", parrot.name, appErr.Error()))
+			p.pluginClient.Log.Error(fmt.Sprintf("Could not create emoji %s: %s", parrot.name, appErr.Error()))
 		}
 	}
 }
 
 func (p *Plugin) EmojiExists(name string) bool {
-	emoji, _ := p.API.GetEmojiByName(name)
+	emoji, _ := p.pluginClient.Emoji.GetByName(name)
 	return emoji != nil
 }
 
 // SendEphemeralPost sends an ephemeral post to a user as the bot account
 func (p *Plugin) SendEphemeralPost(channelID, userID, rootID, message string) {
-	ephemeralPost := &model.Post{
+	p.ephemeralPost = &model.Post{
 		ChannelId: channelID,
 		UserId:    p.UserID,
 		RootId:    rootID,
 		Message:   message,
 	}
-	p.ephemeralPost = p.API.SendEphemeralPost(userID, ephemeralPost)
+	p.pluginClient.Post.SendEphemeralPost(userID, p.ephemeralPost)
 }
 
 func (p *Plugin) UpdateEphemeralPost(message string) {
 	p.ephemeralPost.Message = message
-	p.ephemeralPost = p.API.UpdateEphemeralPost(p.UserID, p.ephemeralPost)
+	p.pluginClient.Post.UpdateEphemeralPost(p.UserID, p.ephemeralPost)
 }
 
 func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, _ *http.Request) {
