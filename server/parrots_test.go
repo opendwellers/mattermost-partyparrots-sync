@@ -21,6 +21,7 @@ func TestFetchParrotGif(t *testing.T) {
 		name: "parrot",
 		file: "hd/parrot.gif",
 	}
-	fetchParrotGif(&parrot, "parrots")
+	err := fetchParrotGif(&parrot, "parrots")
+	assert.Nil(err)
 	assert.NotEmpty(parrot.gif)
 }

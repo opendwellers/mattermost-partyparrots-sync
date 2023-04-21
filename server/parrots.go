@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	baseUrl = "https://raw.githubusercontent.com/jmhobbs/cultofthepartyparrot.com/main/"
+	baseURL = "https://raw.githubusercontent.com/jmhobbs/cultofthepartyparrot.com/main/"
 )
 
 var parrotTypes = [...]string{
@@ -27,7 +27,7 @@ type Parrot struct {
 }
 
 func fetchParrotList(parrotType string) (parrots []Parrot, err error) {
-	resp, err := http.Get(baseUrl + parrotType + ".yaml")
+	resp, err := http.Get(baseURL + parrotType + ".yaml")
 	if err != nil {
 		return
 	}
@@ -59,10 +59,11 @@ func fetchParrotList(parrotType string) (parrots []Parrot, err error) {
 
 func fetchParrotGif(parrot *Parrot, parrotType string) (err error) {
 	// Fetch the gif from GitHub
-	resp, err := http.Get(baseUrl + parrotType + "/" + parrot.file)
+	resp, err := http.Get(baseURL + parrotType + "/" + parrot.file)
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 	parrot.gif, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -59,7 +60,7 @@ func (p *Plugin) OnDeactivate() error {
 }
 
 // ExecuteCommand handle commands that are created by this plugin
-func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
+func (p *Plugin) ExecuteCommand(_ *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	p.API.LogInfo("Slash command received.")
 	p.SendEphemeralPost(args.ChannelId, args.UserId, args.RootId, "Starting Party Parrots sync...")
 	if err := p.ensureConnected(); err != nil {
@@ -93,10 +94,13 @@ func (p *Plugin) CreateEmoji(parrot Parrot, parrotType string) {
 	}
 	// Fetch the gif data from GitHub
 	p.API.LogInfo(fmt.Sprintf("Fetching gif for %s.", parrot.name))
-	fetchParrotGif(&parrot, parrotType)
+	if fetchParrotGif(&parrot, parrotType) != nil {
+		p.API.LogError(fmt.Sprintf("Failed to fetch %s", parrot.name))
+		return
+	}
 	appErr := p.client.RegisterNewEmoji(parrot.gif, parrot.name, p.UserID)
 	if appErr != nil && strings.Contains(appErr.Error(), "Name conflicts with existing system emoji name") {
-		parrot.name = parrot.name + "2"
+		parrot.name += "2"
 		if !p.EmojiExists(parrot.name) {
 			p.API.LogInfo(fmt.Sprintf("Emoji :%s: already exists. Skipping.", parrot.name))
 			return
@@ -110,10 +114,7 @@ func (p *Plugin) CreateEmoji(parrot Parrot, parrotType string) {
 
 func (p *Plugin) EmojiExists(name string) bool {
 	emoji, _ := p.API.GetEmojiByName(name)
-	if emoji != nil {
-		return true
-	}
-	return false
+	return emoji != nil
 }
 
 // SendEphemeralPost sends an ephemeral post to a user as the bot account
@@ -130,6 +131,10 @@ func (p *Plugin) SendEphemeralPost(channelID, userID, rootID, message string) {
 func (p *Plugin) UpdateEphemeralPost(message string) {
 	p.ephemeralPost.Message = message
 	p.ephemeralPost = p.API.UpdateEphemeralPost(p.UserID, p.ephemeralPost)
+}
+
+func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, _ *http.Request) {
+	fmt.Fprint(w, "Hello, world!")
 }
 
 // See https://developers.mattermost.com/extend/plugins/server/reference/
