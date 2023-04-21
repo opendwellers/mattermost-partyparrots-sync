@@ -27,6 +27,14 @@ This will produce a single plugin file (with support for multiple architectures)
 For now, this plugin requires a Personal Access Token to allow access to the CreateEmoji API.
 Hopefully, this can eventually be replaced by self-managed bot account.
 
+### Usage
+
+Once the plugin is installed, enabled and configured, you can run the following slash command:
+`/partyparrotssync`
+
+This will sync all parrots, flags and guests.
+Subsequent runs will skip emojis that are already imported.
+
 ## Development
 
 To avoid having to manually install your plugin, build and deploy your plugin using one of the following options. In order for the below options to work, you must first enable plugin uploads via your config.json or API and restart Mattermost.
