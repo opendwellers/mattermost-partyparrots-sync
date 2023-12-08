@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 type MattermostClient struct {
@@ -55,7 +56,7 @@ func (p *Plugin) initializeMattermostClient() error {
 }
 
 func (c *MattermostClient) getUserID() (string, error) {
-	user, resp, err := c.client.GetMe("")
+	user, resp, err := c.client.GetMe(context.TODO(), "")
 	if err != nil {
 		return "", fmt.Errorf("failed to get user id: %w", err)
 	}
@@ -67,7 +68,7 @@ func (c *MattermostClient) getUserID() (string, error) {
 
 // RegisterNewEmoji send a request for creating emoji
 func (c *MattermostClient) RegisterNewEmoji(b []byte, name, userID string) error {
-	_, resp, err := c.client.CreateEmoji(&model.Emoji{
+	_, resp, err := c.client.CreateEmoji(context.TODO(), &model.Emoji{
 		CreatorId: userID,
 		Name:      name,
 	}, b, name)
