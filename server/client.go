@@ -74,7 +74,7 @@ func (c *MattermostClient) RegisterNewEmoji(b []byte, name, userID string) error
 	}, b, name)
 
 	if err != nil || resp.StatusCode != http.StatusOK {
-		return fmt.Errorf(err.Error())
+		return fmt.Errorf("failed to create emoji: %s", err.Error())
 	}
 	return nil
 }
