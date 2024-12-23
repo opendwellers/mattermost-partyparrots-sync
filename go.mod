@@ -2,6 +2,8 @@ module github.com/opendwellers/partyparrotssync
 
 go 1.23
 
+toolchain go1.23.3
+
 require (
 	github.com/mattermost/mattermost/server/public v0.1.9
 	github.com/pkg/errors v0.9.1
