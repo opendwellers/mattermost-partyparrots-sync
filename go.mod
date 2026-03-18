@@ -43,7 +43,7 @@ require (
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
-	github.com/russellhaering/goxmldsig v1.5.0 // indirect
+	github.com/russellhaering/goxmldsig v1.6.0 // indirect
 	github.com/tinylib/msgp v1.4.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
