@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -68,14 +69,16 @@ func getClient(ctx context.Context) (*model.Client4, error) {
 		socketPath = model.LocalModeSocketPath
 	}
 
+	socketPath = filepath.Clean(socketPath)
+
 	client, connected := getUnixClient(socketPath)
 	if connected {
-		log.Printf("Connecting using local mode over %s", socketPath)
+		log.Printf("Connecting using local mode over %q", socketPath) //nolint:gosec // G706: socketPath is from a trusted env var
 		return client, nil
 	}
 
 	if os.Getenv("MM_LOCALSOCKETPATH") != "" {
-		log.Printf("No socket found at %s for local mode deployment. Attempting to authenticate with credentials.", socketPath)
+		log.Printf("No socket found at %q for local mode deployment. Attempting to authenticate with credentials.", socketPath) //nolint:gosec // G706: socketPath is from a trusted env var
 	}
 
 	siteURL := os.Getenv("MM_SERVICESETTINGS_SITEURL")
@@ -90,14 +93,14 @@ func getClient(ctx context.Context) (*model.Client4, error) {
 	client = model.NewAPIv4Client(siteURL)
 
 	if adminToken != "" {
-		log.Printf("Authenticating using token against %s.", siteURL)
+		log.Printf("Authenticating using token against %q.", siteURL) //nolint:gosec // G706: siteURL is from a trusted env var
 		client.SetToken(adminToken)
 		return client, nil
 	}
 
 	if adminUsername != "" && adminPassword != "" {
 		client := model.NewAPIv4Client(siteURL)
-		log.Printf("Authenticating as %s against %s.", adminUsername, siteURL)
+		log.Printf("Authenticating as %s against %s.", adminUsername, siteURL) //nolint:gosec // G706: values are from trusted env vars
 		_, _, err := client.Login(ctx, adminUsername, adminPassword)
 		if err != nil {
 			return nil, fmt.Errorf("failed to login as %s: %w", adminUsername, err)
@@ -110,7 +113,7 @@ func getClient(ctx context.Context) (*model.Client4, error) {
 }
 
 func getUnixClient(socketPath string) (*model.Client4, bool) {
-	_, err := net.Dial("unix", socketPath)
+	_, err := net.Dial("unix", socketPath) //nolint:gosec // G704: socketPath is from a trusted env var
 	if err != nil {
 		return nil, false
 	}
@@ -121,7 +124,7 @@ func getUnixClient(socketPath string) (*model.Client4, bool) {
 // deploy attempts to upload and enable a plugin via the Client4 API.
 // It will fail if plugin uploads are disabled.
 func deploy(ctx context.Context, client *model.Client4, pluginID, bundlePath string) error {
-	pluginBundle, err := os.Open(bundlePath)
+	pluginBundle, err := os.Open(filepath.Clean(bundlePath))
 	if err != nil {
 		return fmt.Errorf("failed to open %s: %w", bundlePath, err)
 	}
